@@ -188,13 +188,14 @@
 
         .camera-buttons {
             display: flex;
+            flex-direction: column;
             gap: 12px;
             justify-content: center;
         }
 
         .camera-buttons button {
             padding: 14px 28px;
-            flex: 1;
+            width: 100%;
         }
 
         .btn-capture {
@@ -206,6 +207,17 @@
         .btn-capture:hover {
             background: #cccccc;
             border-color: #cccccc;
+        }
+
+        .btn-skip {
+            background: #1e1e1e;
+            color: #ffffff;
+            border-color: #666666;
+        }
+
+        .btn-skip:hover {
+            background: #333333;
+            border-color: #666666;
         }
 
         .btn-cancel {
@@ -272,6 +284,7 @@
             <canvas id="canvas" style="display: none;"></canvas>
             <div class="camera-buttons">
                 <button class="btn-capture" id="captureBtn">촬영하기</button>
+                <button class="btn-skip" id="skipBtn">촬영하지 않기</button>
                 <button class="btn-cancel" id="cancelBtn">취소</button>
             </div>
         </div>
@@ -297,6 +310,7 @@
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
         const captureBtn = document.getElementById('captureBtn');
+        const skipBtn = document.getElementById('skipBtn');
         const cancelBtn = document.getElementById('cancelBtn');
 
         // 독서 시작하기
@@ -371,6 +385,22 @@
             displayRecord();
         });
 
+        // 촬영하지 않기
+        skipBtn.addEventListener('click', () => {
+            // 스트림 정지
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            
+            // 모달 닫기
+            cameraModal.classList.remove('active');
+            
+            // 사진 없이 기록 표시
+            capturedPhoto = null;
+            displayRecord();
+        });
+
         // 취소
         cancelBtn.addEventListener('click', () => {
             if (stream) {
@@ -395,10 +425,13 @@
             
             if (capturedPhoto) {
                 photoPreview.innerHTML = `<img src="${capturedPhoto}" alt="독서 인증 사진">`;
+            } else {
+                photoPreview.innerHTML = '';
             }
             
             recordSection.classList.add('active');
-            shareBtn.disabled = false;
+            // 사진이 있어야만 공유 가능
+            shareBtn.disabled = !capturedPhoto;
             
             // 타이머 정지
             if (timerInterval) {
@@ -440,7 +473,10 @@
 
         // 공유하기
         shareBtn.addEventListener('click', async () => {
-            if (!startTime || !endTime || !capturedPhoto) return;
+            if (!startTime || !endTime || !capturedPhoto) {
+                alert('사진이 필요합니다. 독서 완료 시 사진을 촬영해주세요.');
+                return;
+            }
             
             await shareContent();
         });
