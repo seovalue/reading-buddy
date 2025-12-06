@@ -147,6 +147,15 @@
             text-align: center;
         }
 
+        .share-guide {
+            margin-top: 24px;
+            margin-bottom: 12px;
+            text-align: center;
+            color: #999999;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+
         .photo-preview img {
             max-width: 100%;
             border-radius: 8px;
@@ -220,17 +229,6 @@
             border-color: #666666;
         }
 
-        .btn-cancel {
-            background: #1e1e1e;
-            color: #ffffff;
-            border-color: #ffffff;
-        }
-
-        .btn-cancel:hover {
-            background: #ffffff;
-            color: #000000;
-        }
-
         @media (min-width: 480px) {
             .container {
                 max-width: 420px;
@@ -274,7 +272,11 @@
             <div class="photo-preview" id="photoPreview"></div>
         </div>
         
-        <button class="btn-share" id="shareBtn" disabled>공유하기</button>
+        <div class="share-guide" id="shareGuide" style="display: none;">
+            복사하기 버튼을 누른 뒤 원하는 곳에 붙여 넣어 보세요!
+        </div>
+        
+        <button class="btn-share" id="shareBtn" disabled>복사하기</button>
     </div>
 
     <!-- 카메라 모달 -->
@@ -285,7 +287,6 @@
             <div class="camera-buttons">
                 <button class="btn-capture" id="captureBtn">촬영하기</button>
                 <button class="btn-skip" id="skipBtn">촬영하지 않기</button>
-                <button class="btn-cancel" id="cancelBtn">취소</button>
             </div>
         </div>
     </div>
@@ -311,7 +312,6 @@
         const canvas = document.getElementById('canvas');
         const captureBtn = document.getElementById('captureBtn');
         const skipBtn = document.getElementById('skipBtn');
-        const cancelBtn = document.getElementById('cancelBtn');
 
         // 독서 시작하기
         startBtn.addEventListener('click', () => {
@@ -321,6 +321,7 @@
             recordSection.classList.remove('active');
             shareBtn.disabled = true;
             capturedPhoto = null;
+            document.getElementById('shareGuide').style.display = 'none';
             
             // 타이머 시작
             timerInterval = setInterval(updateTimer, 1000);
@@ -343,28 +344,54 @@
         }
 
         // 독서 완료하기
-        completeBtn.addEventListener('click', async () => {
+        completeBtn.addEventListener('click', () => {
             if (!startTime) return;
             
             endTime = new Date();
             
-            // 카메라 모달 열기
+            // 카메라 모달 열기 (권한은 아직 요청하지 않음)
             cameraModal.classList.add('active');
-            
-            try {
-                stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: 'environment' } 
-                });
-                video.srcObject = stream;
-            } catch (error) {
-                console.error('카메라 접근 오류:', error);
-                alert('카메라 접근에 실패했습니다. 브라우저 권한을 확인해주세요.');
-                cameraModal.classList.remove('active');
-            }
+            // 비디오 초기화
+            video.srcObject = null;
         });
 
         // 사진 촬영
-        captureBtn.addEventListener('click', () => {
+        captureBtn.addEventListener('click', async () => {
+            // 카메라 권한 요청 (처음 촬영하기를 누를 때만)
+            if (!stream) {
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { facingMode: 'environment' } 
+                    });
+                    video.srcObject = stream;
+                    // 비디오가 로드되면 버튼 텍스트 변경 (선택사항)
+                    video.addEventListener('loadedmetadata', function onVideoReady() {
+                        video.removeEventListener('loadedmetadata', onVideoReady);
+                        // 버튼을 다시 눌러야 촬영되도록 함 (자동 촬영 안 함)
+                    }, { once: true });
+                    return;
+                } catch (error) {
+                    console.error('카메라 접근 오류:', error);
+                    alert('카메라 접근에 실패했습니다. 브라우저 권한을 확인해주세요.');
+                    cameraModal.classList.remove('active');
+                    return;
+                }
+            }
+            
+            // 이미 스트림이 있고 비디오가 준비되었으면 촬영
+            if (video.videoWidth && video.videoHeight) {
+                takePhoto();
+            }
+        });
+        
+        // 실제 사진 촬영 함수
+        function takePhoto() {
+            // 비디오가 준비되지 않았으면 대기
+            if (!video.videoWidth || !video.videoHeight) {
+                return;
+            }
+            
+            // 사진 촬영
             const context = canvas.getContext('2d');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
@@ -383,11 +410,11 @@
             
             // 기록 표시
             displayRecord();
-        });
+        }
 
         // 촬영하지 않기
         skipBtn.addEventListener('click', () => {
-            // 스트림 정지
+            // 스트림 정지 (이미 시작된 경우)
             if (stream) {
                 stream.getTracks().forEach(track => track.stop());
                 stream = null;
@@ -399,15 +426,6 @@
             // 사진 없이 기록 표시
             capturedPhoto = null;
             displayRecord();
-        });
-
-        // 취소
-        cancelBtn.addEventListener('click', () => {
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-                stream = null;
-            }
-            cameraModal.classList.remove('active');
         });
 
         // 기록 표시
@@ -430,8 +448,10 @@
             }
             
             recordSection.classList.add('active');
-            // 사진이 있어야만 공유 가능
-            shareBtn.disabled = !capturedPhoto;
+            // 사진 유무와 관계없이 공유 가능
+            shareBtn.disabled = false;
+            // 가이드 표시
+            document.getElementById('shareGuide').style.display = 'block';
             
             // 타이머 정지
             if (timerInterval) {
@@ -471,14 +491,13 @@
             }
         }
 
-        // 공유하기
+        // 복사하기
         shareBtn.addEventListener('click', async () => {
-            if (!startTime || !endTime || !capturedPhoto) {
-                alert('사진이 필요합니다. 독서 완료 시 사진을 촬영해주세요.');
+            if (!startTime || !endTime) {
                 return;
             }
             
-            await shareContent();
+            await copyImage();
         });
 
         // 공유 이미지 생성 (인스타그램 스토리 사이즈: 1080x1920)
@@ -499,56 +518,71 @@
                 ctx.textAlign = 'center';
                 ctx.fillText('book buddy', shareCanvas.width / 2, 120);
                 
-                // 사진
-                const img = new Image();
-                img.onload = () => {
-                    const photoWidth = 900;
-                    const photoHeight = photoWidth * (img.height / img.width);
-                    const photoX = (shareCanvas.width - photoWidth) / 2;
-                    const photoY = 220;
-                    
-                    // 사진이 캔버스 높이를 넘지 않도록 조정
-                    let finalPhotoHeight = photoHeight;
-                    let finalPhotoWidth = photoWidth;
-                    if (photoY + photoHeight > shareCanvas.height - 400) {
-                        finalPhotoHeight = shareCanvas.height - 400 - photoY;
-                        finalPhotoWidth = finalPhotoHeight * (img.width / img.height);
-                    }
-                    
-                    const finalPhotoX = (shareCanvas.width - finalPhotoWidth) / 2;
-                    ctx.drawImage(img, finalPhotoX, photoY, finalPhotoWidth, finalPhotoHeight);
-                    
-                    // 정보 텍스트
-                    const infoY = photoY + finalPhotoHeight + 80;
+                // 정보 텍스트 그리기 함수
+                function drawInfoText(ctx, width, startY) {
                     ctx.fillStyle = '#ffffff';
                     ctx.font = 'bold 40px Arial';
                     ctx.textAlign = 'center';
                     
-                    ctx.fillText(`시작 시간`, shareCanvas.width / 2, infoY);
+                    ctx.fillText(`시작 시간`, width / 2, startY);
                     ctx.font = '36px Arial';
-                    ctx.fillText(`${formatDateTime(startTime)}`, shareCanvas.width / 2, infoY + 50);
+                    ctx.fillText(`${formatDateTime(startTime)}`, width / 2, startY + 50);
                     
                     ctx.font = 'bold 40px Arial';
-                    ctx.fillText(`완료 시간`, shareCanvas.width / 2, infoY + 120);
+                    ctx.fillText(`완료 시간`, width / 2, startY + 120);
                     ctx.font = '36px Arial';
-                    ctx.fillText(`${formatDateTime(endTime)}`, shareCanvas.width / 2, infoY + 170);
+                    ctx.fillText(`${formatDateTime(endTime)}`, width / 2, startY + 170);
                     
                     ctx.font = 'bold 40px Arial';
-                    ctx.fillText(`독서 시간`, shareCanvas.width / 2, infoY + 240);
+                    ctx.fillText(`독서 시간`, width / 2, startY + 240);
                     ctx.font = '36px Arial';
-                    ctx.fillText(`${formatDuration(Math.floor((endTime - startTime) / 1000))}`, shareCanvas.width / 2, infoY + 290);
+                    ctx.fillText(`${formatDuration(Math.floor((endTime - startTime) / 1000))}`, width / 2, startY + 290);
                     
-                    // URL 추가
-                    const urlY = shareCanvas.height - 100;
-                    ctx.fillStyle = '#999999';
+                    // 링크 텍스트 추가
+                    const linkUrl = 'https://seovalue.github.io/reading-buddy/';
+                    const linkTextY = shareCanvas.height - 100;
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 32px Arial';
+                    ctx.fillText('book buddy link:', width / 2, linkTextY);
                     ctx.font = '28px Arial';
-                    ctx.fillText('https://seovalue.github.io/reading-buddy/', shareCanvas.width / 2, urlY);
+                    ctx.fillStyle = '#999999';
+                    ctx.fillText(linkUrl, width / 2, linkTextY + 40);
                     
                     shareCanvas.toBlob((blob) => {
                         resolve(blob);
                     }, 'image/png');
-                };
-                img.src = capturedPhoto;
+                }
+                
+                // 사진이 있는 경우
+                if (capturedPhoto) {
+                    const img = new Image();
+                    img.onload = () => {
+                        const photoWidth = 900;
+                        const photoHeight = photoWidth * (img.height / img.width);
+                        const photoX = (shareCanvas.width - photoWidth) / 2;
+                        const photoY = 220;
+                        
+                        // 사진이 캔버스 높이를 넘지 않도록 조정
+                        let finalPhotoHeight = photoHeight;
+                        let finalPhotoWidth = photoWidth;
+                        if (photoY + photoHeight > shareCanvas.height - 400) {
+                            finalPhotoHeight = shareCanvas.height - 400 - photoY;
+                            finalPhotoWidth = finalPhotoHeight * (img.width / img.height);
+                        }
+                        
+                        const finalPhotoX = (shareCanvas.width - finalPhotoWidth) / 2;
+                        ctx.drawImage(img, finalPhotoX, photoY, finalPhotoWidth, finalPhotoHeight);
+                        
+                        // 정보 텍스트
+                        const infoY = photoY + finalPhotoHeight + 80;
+                        drawInfoText(ctx, shareCanvas.width, infoY);
+                    };
+                    img.src = capturedPhoto;
+                } else {
+                    // 사진이 없는 경우 - 정보 텍스트만 표시
+                    const infoY = 600;
+                    drawInfoText(ctx, shareCanvas.width, infoY);
+                }
             });
         }
 
@@ -559,42 +593,13 @@
             return `📚 book buddy 독서 인증\n\n시작: ${formatDateTime(startTime)}\n완료: ${formatDateTime(endTime)}\n독서 시간: ${durationStr}`;
         }
 
-        // 공유하기
-        async function shareContent() {
+        // 복사하기
+        async function copyImage() {
             try {
                 // 공유 이미지 생성
                 const imageBlob = await generateShareImage();
-                const imageFile = new File([imageBlob], 'book-buddy-cert.png', { type: 'image/png' });
-                const shareText = createShareText();
                 
-                // Web Share API 사용 (모바일)
-                if (navigator.share && navigator.canShare) {
-                    const shareData = {
-                        title: 'book buddy - 독서 인증',
-                        text: shareText,
-                        files: [imageFile]
-                    };
-                    
-                    if (navigator.canShare(shareData)) {
-                        await navigator.share(shareData);
-                        return;
-                    }
-                }
-                
-                // Web Share API (파일 없이)
-                if (navigator.share) {
-                    try {
-                        await navigator.share({
-                            title: 'book buddy - 독서 인증',
-                            text: shareText
-                        });
-                        return;
-                    } catch (err) {
-                        // 파일 공유 실패 시 텍스트만 공유
-                    }
-                }
-                
-                // 클립보드에 이미지 복사 (데스크톱 또는 대체 방법)
+                // 클립보드에 이미지 복사
                 try {
                     await navigator.clipboard.write([
                         new ClipboardItem({
@@ -602,10 +607,7 @@
                         })
                     ]);
                     
-                    // 클립보드에 텍스트도 복사
-                    await navigator.clipboard.writeText(shareText);
-                    
-                    alert('이미지와 텍스트가 클립보드에 복사되었습니다!\n메신저에 붙여넣기(Ctrl+V 또는 Cmd+V)로 공유하세요.');
+                    alert('이미지가 클립보드에 복사되었습니다!\n원하는 곳에 붙여넣기(Ctrl+V 또는 Cmd+V)로 공유하세요.');
                 } catch (clipboardError) {
                     // 클립보드 실패 시 다운로드로 대체
                     const url = URL.createObjectURL(imageBlob);
@@ -617,17 +619,11 @@
                     document.body.removeChild(a);
                     URL.revokeObjectURL(url);
                     
-                    // 텍스트도 클립보드에 복사 시도
-                    try {
-                        await navigator.clipboard.writeText(shareText);
-                        alert('이미지가 다운로드되었고, 텍스트가 클립보드에 복사되었습니다!');
-                    } catch (e) {
-                        alert('이미지가 다운로드되었습니다!');
-                    }
+                    alert('클립보드 복사에 실패했습니다. 이미지가 다운로드되었습니다!');
                 }
             } catch (error) {
-                console.error('공유 오류:', error);
-                alert('공유에 실패했습니다. 다시 시도해주세요.');
+                console.error('복사 오류:', error);
+                alert('복사에 실패했습니다. 다시 시도해주세요.');
             }
         }
     </script>
