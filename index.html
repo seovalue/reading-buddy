@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>독서 타이머</title>
+    <title>book buddy</title>
+    <meta property="og:title" content="book buddy - 독서 인증">
+    <meta property="og:description" content="독서 시간을 기록하고 인증하세요">
+    <meta property="og:type" content="website">
     <style>
         * {
             margin: 0;
@@ -13,103 +16,98 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #121212;
             min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 20px;
+            padding: 16px;
         }
 
         .container {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            padding: 40px;
-            max-width: 600px;
+            background: #1e1e1e;
+            border: 1px solid #333333;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 100%;
             width: 100%;
         }
 
         h1 {
             text-align: center;
-            color: #333;
-            margin-bottom: 30px;
-            font-size: 2em;
+            color: #ffffff;
+            margin-bottom: 32px;
+            font-size: 1.75em;
+            font-weight: 600;
+            letter-spacing: -0.5px;
         }
 
         .timer-display {
             text-align: center;
-            font-size: 3em;
-            font-weight: bold;
-            color: #667eea;
-            margin: 30px 0;
-            min-height: 80px;
+            font-size: 2.5em;
+            font-weight: 300;
+            color: #ffffff;
+            margin: 32px 0;
+            min-height: 72px;
             display: flex;
             align-items: center;
             justify-content: center;
+            letter-spacing: 2px;
         }
 
         .button-group {
             display: flex;
-            gap: 15px;
-            margin-bottom: 30px;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 24px;
         }
 
         button {
-            flex: 1;
-            padding: 15px 30px;
-            font-size: 1.1em;
-            border: none;
-            border-radius: 10px;
+            width: 100%;
+            padding: 16px 24px;
+            font-size: 1em;
+            border: 2px solid #ffffff;
+            border-radius: 8px;
             cursor: pointer;
-            transition: all 0.3s ease;
-            font-weight: 600;
-        }
-
-        .btn-start {
-            background: #667eea;
-            color: white;
+            transition: all 0.2s ease;
+            font-weight: 500;
+            background: #1e1e1e;
+            color: #ffffff;
         }
 
         .btn-start:hover:not(:disabled) {
-            background: #5568d3;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-        }
-
-        .btn-complete {
-            background: #48bb78;
-            color: white;
+            background: #ffffff;
+            color: #000000;
         }
 
         .btn-complete:hover:not(:disabled) {
-            background: #38a169;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(72, 187, 120, 0.4);
+            background: #ffffff;
+            color: #000000;
         }
 
         .btn-share {
-            background: #ed8936;
-            color: white;
             width: 100%;
         }
 
         .btn-share:hover:not(:disabled) {
-            background: #dd6b20;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(237, 137, 54, 0.4);
+            background: #ffffff;
+            color: #000000;
         }
 
         button:disabled {
-            opacity: 0.5;
+            opacity: 0.3;
             cursor: not-allowed;
+            background: #1e1e1e;
+            border-color: #444444;
+            color: #666666;
         }
 
         .record-section {
-            margin-top: 30px;
+            margin-top: 24px;
             padding: 20px;
-            background: #f7fafc;
-            border-radius: 10px;
+            background: #2a2a2a;
+            border: 1px solid #333333;
+            border-radius: 8px;
             display: none;
         }
 
@@ -118,29 +116,41 @@
         }
 
         .record-item {
-            margin-bottom: 15px;
+            margin-bottom: 16px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #333333;
+        }
+
+        .record-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
         }
 
         .record-label {
-            font-weight: 600;
-            color: #4a5568;
-            margin-bottom: 5px;
+            font-weight: 500;
+            color: #999999;
+            margin-bottom: 6px;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .record-value {
-            color: #2d3748;
-            font-size: 1.1em;
+            color: #ffffff;
+            font-size: 1em;
+            font-weight: 400;
         }
 
         .photo-preview {
-            margin-top: 15px;
+            margin-top: 20px;
             text-align: center;
         }
 
         .photo-preview img {
             max-width: 100%;
-            border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            border: 1px solid #333333;
         }
 
         .camera-modal {
@@ -150,7 +160,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.95);
             z-index: 1000;
             justify-content: center;
             align-items: center;
@@ -161,61 +171,73 @@
         }
 
         .camera-container {
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            max-width: 90%;
-            max-height: 90%;
+            background: #1e1e1e;
+            padding: 24px;
+            border-radius: 12px;
+            max-width: 95%;
+            max-height: 95%;
+            border: 1px solid #333333;
         }
 
         .camera-container video {
             max-width: 100%;
-            border-radius: 10px;
-            margin-bottom: 20px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            border: 1px solid #333333;
         }
 
         .camera-buttons {
             display: flex;
-            gap: 10px;
+            gap: 12px;
             justify-content: center;
         }
 
         .camera-buttons button {
-            padding: 12px 24px;
+            padding: 14px 28px;
+            flex: 1;
         }
 
         .btn-capture {
-            background: #667eea;
-            color: white;
+            background: #ffffff;
+            color: #000000;
+            border-color: #ffffff;
+        }
+
+        .btn-capture:hover {
+            background: #cccccc;
+            border-color: #cccccc;
         }
 
         .btn-cancel {
-            background: #e53e3e;
-            color: white;
+            background: #1e1e1e;
+            color: #ffffff;
+            border-color: #ffffff;
         }
 
-        @media (max-width: 600px) {
+        .btn-cancel:hover {
+            background: #ffffff;
+            color: #000000;
+        }
+
+        @media (min-width: 480px) {
             .container {
-                padding: 20px;
+                max-width: 420px;
+                padding: 32px;
             }
 
             h1 {
-                font-size: 1.5em;
-            }
-
-            .timer-display {
                 font-size: 2em;
             }
 
-            .button-group {
-                flex-direction: column;
+            .timer-display {
+                font-size: 3em;
             }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>📚 독서 타이머</h1>
+        <h1>book buddy</h1>
         
         <div class="timer-display" id="timerDisplay">00:00:00</div>
         
@@ -417,61 +439,160 @@
         }
 
         // 공유하기
-        shareBtn.addEventListener('click', () => {
+        shareBtn.addEventListener('click', async () => {
             if (!startTime || !endTime || !capturedPhoto) return;
             
-            generateShareImage();
+            await shareContent();
         });
 
-        // 공유 이미지 생성
+        // 공유 이미지 생성 (인스타그램 스토리 사이즈: 1080x1920)
         function generateShareImage() {
-            const shareCanvas = document.createElement('canvas');
-            shareCanvas.width = 800;
-            shareCanvas.height = 1000;
-            const ctx = shareCanvas.getContext('2d');
-            
-            // 배경
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, shareCanvas.width, shareCanvas.height);
-            
-            // 제목
-            ctx.fillStyle = '#333333';
-            ctx.font = 'bold 36px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('독서 인증', shareCanvas.width / 2, 60);
-            
-            // 사진
-            const img = new Image();
-            img.onload = () => {
-                const photoSize = 600;
-                const photoX = (shareCanvas.width - photoSize) / 2;
-                const photoY = 120;
+            return new Promise((resolve) => {
+                const shareCanvas = document.createElement('canvas');
+                shareCanvas.width = 1080;
+                shareCanvas.height = 1920;
+                const ctx = shareCanvas.getContext('2d');
                 
-                ctx.drawImage(img, photoX, photoY, photoSize, photoSize * (img.height / img.width));
+                // 배경
+                ctx.fillStyle = '#121212';
+                ctx.fillRect(0, 0, shareCanvas.width, shareCanvas.height);
                 
-                // 정보 텍스트
-                const infoY = photoY + photoSize * (img.height / img.width) + 50;
-                ctx.fillStyle = '#666666';
-                ctx.font = '24px Arial';
+                // 제목
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 64px Arial';
                 ctx.textAlign = 'center';
+                ctx.fillText('book buddy', shareCanvas.width / 2, 120);
                 
-                ctx.fillText(`시작 시간: ${formatDateTime(startTime)}`, shareCanvas.width / 2, infoY);
-                ctx.fillText(`완료 시간: ${formatDateTime(endTime)}`, shareCanvas.width / 2, infoY + 40);
-                ctx.fillText(`독서 시간: ${formatDuration(Math.floor((endTime - startTime) / 1000))}`, shareCanvas.width / 2, infoY + 80);
+                // 사진
+                const img = new Image();
+                img.onload = () => {
+                    const photoWidth = 900;
+                    const photoHeight = photoWidth * (img.height / img.width);
+                    const photoX = (shareCanvas.width - photoWidth) / 2;
+                    const photoY = 220;
+                    
+                    // 사진이 캔버스 높이를 넘지 않도록 조정
+                    let finalPhotoHeight = photoHeight;
+                    let finalPhotoWidth = photoWidth;
+                    if (photoY + photoHeight > shareCanvas.height - 400) {
+                        finalPhotoHeight = shareCanvas.height - 400 - photoY;
+                        finalPhotoWidth = finalPhotoHeight * (img.width / img.height);
+                    }
+                    
+                    const finalPhotoX = (shareCanvas.width - finalPhotoWidth) / 2;
+                    ctx.drawImage(img, finalPhotoX, photoY, finalPhotoWidth, finalPhotoHeight);
+                    
+                    // 정보 텍스트
+                    const infoY = photoY + finalPhotoHeight + 80;
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 40px Arial';
+                    ctx.textAlign = 'center';
+                    
+                    ctx.fillText(`시작 시간`, shareCanvas.width / 2, infoY);
+                    ctx.font = '36px Arial';
+                    ctx.fillText(`${formatDateTime(startTime)}`, shareCanvas.width / 2, infoY + 50);
+                    
+                    ctx.font = 'bold 40px Arial';
+                    ctx.fillText(`완료 시간`, shareCanvas.width / 2, infoY + 120);
+                    ctx.font = '36px Arial';
+                    ctx.fillText(`${formatDateTime(endTime)}`, shareCanvas.width / 2, infoY + 170);
+                    
+                    ctx.font = 'bold 40px Arial';
+                    ctx.fillText(`독서 시간`, shareCanvas.width / 2, infoY + 240);
+                    ctx.font = '36px Arial';
+                    ctx.fillText(`${formatDuration(Math.floor((endTime - startTime) / 1000))}`, shareCanvas.width / 2, infoY + 290);
+                    
+                    // URL 추가
+                    const urlY = shareCanvas.height - 100;
+                    ctx.fillStyle = '#999999';
+                    ctx.font = '28px Arial';
+                    ctx.fillText('https://seovalue.github.io/reading-buddy/', shareCanvas.width / 2, urlY);
+                    
+                    shareCanvas.toBlob((blob) => {
+                        resolve(blob);
+                    }, 'image/png');
+                };
+                img.src = capturedPhoto;
+            });
+        }
+
+        // 공유 내용 생성
+        function createShareText() {
+            const duration = Math.floor((endTime - startTime) / 1000);
+            const durationStr = formatDuration(duration);
+            return `📚 book buddy 독서 인증\n\n시작: ${formatDateTime(startTime)}\n완료: ${formatDateTime(endTime)}\n독서 시간: ${durationStr}`;
+        }
+
+        // 공유하기
+        async function shareContent() {
+            try {
+                // 공유 이미지 생성
+                const imageBlob = await generateShareImage();
+                const imageFile = new File([imageBlob], 'book-buddy-cert.png', { type: 'image/png' });
+                const shareText = createShareText();
                 
-                // 이미지 다운로드
-                shareCanvas.toBlob((blob) => {
-                    const url = URL.createObjectURL(blob);
+                // Web Share API 사용 (모바일)
+                if (navigator.share && navigator.canShare) {
+                    const shareData = {
+                        title: 'book buddy - 독서 인증',
+                        text: shareText,
+                        files: [imageFile]
+                    };
+                    
+                    if (navigator.canShare(shareData)) {
+                        await navigator.share(shareData);
+                        return;
+                    }
+                }
+                
+                // Web Share API (파일 없이)
+                if (navigator.share) {
+                    try {
+                        await navigator.share({
+                            title: 'book buddy - 독서 인증',
+                            text: shareText
+                        });
+                        return;
+                    } catch (err) {
+                        // 파일 공유 실패 시 텍스트만 공유
+                    }
+                }
+                
+                // 클립보드에 이미지 복사 (데스크톱 또는 대체 방법)
+                try {
+                    await navigator.clipboard.write([
+                        new ClipboardItem({
+                            'image/png': imageBlob
+                        })
+                    ]);
+                    
+                    // 클립보드에 텍스트도 복사
+                    await navigator.clipboard.writeText(shareText);
+                    
+                    alert('이미지와 텍스트가 클립보드에 복사되었습니다!\n메신저에 붙여넣기(Ctrl+V 또는 Cmd+V)로 공유하세요.');
+                } catch (clipboardError) {
+                    // 클립보드 실패 시 다운로드로 대체
+                    const url = URL.createObjectURL(imageBlob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = `독서인증_${formatDateTime(startTime).replace(/[: ]/g, '_')}.png`;
+                    a.download = `book-buddy-${formatDateTime(startTime).replace(/[: ]/g, '_')}.png`;
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
                     URL.revokeObjectURL(url);
-                });
-            };
-            img.src = capturedPhoto;
+                    
+                    // 텍스트도 클립보드에 복사 시도
+                    try {
+                        await navigator.clipboard.writeText(shareText);
+                        alert('이미지가 다운로드되었고, 텍스트가 클립보드에 복사되었습니다!');
+                    } catch (e) {
+                        alert('이미지가 다운로드되었습니다!');
+                    }
+                }
+            } catch (error) {
+                console.error('공유 오류:', error);
+                alert('공유에 실패했습니다. 다시 시도해주세요.');
+            }
         }
     </script>
 </body>
