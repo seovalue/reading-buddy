@@ -162,6 +162,25 @@
             border: 1px solid #333333;
         }
 
+        .btn-retake {
+            width: 100%;
+            margin-top: 16px;
+            padding: 12px 24px;
+            font-size: 0.9em;
+            border: 2px solid #666666;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 500;
+            background: #1e1e1e;
+            color: #ffffff;
+        }
+
+        .btn-retake:hover {
+            background: #333333;
+            border-color: #888888;
+        }
+
         .camera-modal {
             display: none;
             position: fixed;
@@ -270,6 +289,7 @@
                 <div class="record-value" id="duration">-</div>
             </div>
             <div class="photo-preview" id="photoPreview"></div>
+            <button class="btn-retake" id="retakeBtn" style="display: none;">재촬영</button>
         </div>
         
         <div class="share-guide" id="shareGuide" style="display: none;">
@@ -312,6 +332,7 @@
         const canvas = document.getElementById('canvas');
         const captureBtn = document.getElementById('captureBtn');
         const skipBtn = document.getElementById('skipBtn');
+        const retakeBtn = document.getElementById('retakeBtn');
 
         // 독서 시작하기
         startBtn.addEventListener('click', () => {
@@ -428,6 +449,32 @@
             displayRecord();
         });
 
+        // 재촬영
+        retakeBtn.addEventListener('click', () => {
+            // 카메라 모달 열기
+            cameraModal.classList.add('active');
+            // 비디오 초기화
+            video.srcObject = null;
+            // 기존 스트림 정리
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+        });
+
+        // 재촬영
+        retakeBtn.addEventListener('click', () => {
+            // 카메라 모달 열기
+            cameraModal.classList.add('active');
+            // 비디오 초기화
+            video.srcObject = null;
+            // 기존 스트림 정리
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+        });
+
         // 기록 표시
         function displayRecord() {
             if (!startTime || !endTime) return;
@@ -443,8 +490,10 @@
             
             if (capturedPhoto) {
                 photoPreview.innerHTML = `<img src="${capturedPhoto}" alt="독서 인증 사진">`;
+                document.getElementById('retakeBtn').style.display = 'block';
             } else {
                 photoPreview.innerHTML = '';
+                document.getElementById('retakeBtn').style.display = 'none';
             }
             
             recordSection.classList.add('active');
@@ -599,32 +648,47 @@
                 // 공유 이미지 생성
                 const imageBlob = await generateShareImage();
                 
-                // 클립보드에 이미지 복사
+                // 방법 1: ClipboardItem API 사용 (최신 브라우저)
                 try {
-                    await navigator.clipboard.write([
-                        new ClipboardItem({
-                            'image/png': imageBlob
-                        })
-                    ]);
-                    
-                    alert('이미지가 클립보드에 복사되었습니다!\n원하는 곳에 붙여넣기(Ctrl+V 또는 Cmd+V)로 공유하세요.');
+                    if (navigator.clipboard && navigator.clipboard.write) {
+                        await navigator.clipboard.write([
+                            new ClipboardItem({
+                                'image/png': imageBlob
+                            })
+                        ]);
+                        alert('이미지가 클립보드에 복사되었습니다!\n원하는 곳에 붙여넣기(Ctrl+V 또는 Cmd+V)로 공유하세요.');
+                        return;
+                    }
                 } catch (clipboardError) {
-                    // 클립보드 실패 시 다운로드로 대체
-                    const url = URL.createObjectURL(imageBlob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `book-buddy-${formatDateTime(startTime).replace(/[: ]/g, '_')}.png`;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                    
-                    alert('클립보드 복사에 실패했습니다. 이미지가 다운로드되었습니다!');
+                    console.log('ClipboardItem API 실패, 대체 방법 시도:', clipboardError);
                 }
+                
+                // 방법 2: 자동 다운로드 (모든 방법 실패 시, 실패 메시지 없이)
+                downloadImage(imageBlob);
+                
             } catch (error) {
                 console.error('복사 오류:', error);
-                alert('복사에 실패했습니다. 다시 시도해주세요.');
+                // 에러 발생 시에도 다운로드로 전환
+                try {
+                    const imageBlob = await generateShareImage();
+                    downloadImage(imageBlob);
+                } catch (downloadError) {
+                    console.error('다운로드도 실패:', downloadError);
+                    alert('이미지 생성에 실패했습니다. 다시 시도해주세요.');
+                }
             }
+        }
+
+        // 이미지 다운로드 함수 (실패 메시지 없이 조용히 다운로드)
+        function downloadImage(imageBlob) {
+            const url = URL.createObjectURL(imageBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `book-buddy-${formatDateTime(startTime).replace(/[: ]/g, '_')}.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
     </script>
 </body>
