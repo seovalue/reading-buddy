@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>독서 타이머</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+
+        .timer-display {
+            text-align: center;
+            font-size: 3em;
+            font-weight: bold;
+            color: #667eea;
+            margin: 30px 0;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        button {
+            flex: 1;
+            padding: 15px 30px;
+            font-size: 1.1em;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .btn-start {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-start:hover:not(:disabled) {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-complete {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-complete:hover:not(:disabled) {
+            background: #38a169;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(72, 187, 120, 0.4);
+        }
+
+        .btn-share {
+            background: #ed8936;
+            color: white;
+            width: 100%;
+        }
+
+        .btn-share:hover:not(:disabled) {
+            background: #dd6b20;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(237, 137, 54, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .record-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f7fafc;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .record-section.active {
+            display: block;
+        }
+
+        .record-item {
+            margin-bottom: 15px;
+        }
+
+        .record-label {
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 5px;
+        }
+
+        .record-value {
+            color: #2d3748;
+            font-size: 1.1em;
+        }
+
+        .photo-preview {
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        .photo-preview img {
+            max-width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .camera-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .camera-modal.active {
+            display: flex;
+        }
+
+        .camera-container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 90%;
+            max-height: 90%;
+        }
+
+        .camera-container video {
+            max-width: 100%;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .camera-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .camera-buttons button {
+            padding: 12px 24px;
+        }
+
+        .btn-capture {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-cancel {
+            background: #e53e3e;
+            color: white;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 1.5em;
+            }
+
+            .timer-display {
+                font-size: 2em;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📚 독서 타이머</h1>
+        
+        <div class="timer-display" id="timerDisplay">00:00:00</div>
+        
+        <div class="button-group">
+            <button class="btn-start" id="startBtn">독서 시작하기</button>
+            <button class="btn-complete" id="completeBtn" disabled>독서 완료하기</button>
+        </div>
+        
+        <div class="record-section" id="recordSection">
+            <div class="record-item">
+                <div class="record-label">시작 시간</div>
+                <div class="record-value" id="startTime">-</div>
+            </div>
+            <div class="record-item">
+                <div class="record-label">완료 시간</div>
+                <div class="record-value" id="endTime">-</div>
+            </div>
+            <div class="record-item">
+                <div class="record-label">독서 시간</div>
+                <div class="record-value" id="duration">-</div>
+            </div>
+            <div class="photo-preview" id="photoPreview"></div>
+        </div>
+        
+        <button class="btn-share" id="shareBtn" disabled>공유하기</button>
+    </div>
+
+    <!-- 카메라 모달 -->
+    <div class="camera-modal" id="cameraModal">
+        <div class="camera-container">
+            <video id="video" autoplay playsinline></video>
+            <canvas id="canvas" style="display: none;"></canvas>
+            <div class="camera-buttons">
+                <button class="btn-capture" id="captureBtn">촬영하기</button>
+                <button class="btn-cancel" id="cancelBtn">취소</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let startTime = null;
+        let endTime = null;
+        let timerInterval = null;
+        let stream = null;
+        let capturedPhoto = null;
+
+        const startBtn = document.getElementById('startBtn');
+        const completeBtn = document.getElementById('completeBtn');
+        const shareBtn = document.getElementById('shareBtn');
+        const timerDisplay = document.getElementById('timerDisplay');
+        const recordSection = document.getElementById('recordSection');
+        const startTimeDisplay = document.getElementById('startTime');
+        const endTimeDisplay = document.getElementById('endTime');
+        const durationDisplay = document.getElementById('duration');
+        const photoPreview = document.getElementById('photoPreview');
+        const cameraModal = document.getElementById('cameraModal');
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const captureBtn = document.getElementById('captureBtn');
+        const cancelBtn = document.getElementById('cancelBtn');
+
+        // 독서 시작하기
+        startBtn.addEventListener('click', () => {
+            startTime = new Date();
+            startBtn.disabled = true;
+            completeBtn.disabled = false;
+            recordSection.classList.remove('active');
+            shareBtn.disabled = true;
+            capturedPhoto = null;
+            
+            // 타이머 시작
+            timerInterval = setInterval(updateTimer, 1000);
+            updateTimer();
+        });
+
+        // 타이머 업데이트
+        function updateTimer() {
+            if (!startTime) return;
+            
+            const now = new Date();
+            const elapsed = Math.floor((now - startTime) / 1000);
+            
+            const hours = Math.floor(elapsed / 3600);
+            const minutes = Math.floor((elapsed % 3600) / 60);
+            const seconds = elapsed % 60;
+            
+            timerDisplay.textContent = 
+                `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
+        // 독서 완료하기
+        completeBtn.addEventListener('click', async () => {
+            if (!startTime) return;
+            
+            endTime = new Date();
+            
+            // 카메라 모달 열기
+            cameraModal.classList.add('active');
+            
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'user' } 
+                });
+                video.srcObject = stream;
+            } catch (error) {
+                console.error('카메라 접근 오류:', error);
+                alert('카메라 접근에 실패했습니다. 브라우저 권한을 확인해주세요.');
+                cameraModal.classList.remove('active');
+            }
+        });
+
+        // 사진 촬영
+        captureBtn.addEventListener('click', () => {
+            const context = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0);
+            
+            capturedPhoto = canvas.toDataURL('image/png');
+            
+            // 스트림 정지
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            
+            // 모달 닫기
+            cameraModal.classList.remove('active');
+            
+            // 기록 표시
+            displayRecord();
+        });
+
+        // 취소
+        cancelBtn.addEventListener('click', () => {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            cameraModal.classList.remove('active');
+        });
+
+        // 기록 표시
+        function displayRecord() {
+            if (!startTime || !endTime) return;
+            
+            const startTimeStr = formatDateTime(startTime);
+            const endTimeStr = formatDateTime(endTime);
+            const duration = Math.floor((endTime - startTime) / 1000);
+            const durationStr = formatDuration(duration);
+            
+            startTimeDisplay.textContent = startTimeStr;
+            endTimeDisplay.textContent = endTimeStr;
+            durationDisplay.textContent = durationStr;
+            
+            if (capturedPhoto) {
+                photoPreview.innerHTML = `<img src="${capturedPhoto}" alt="독서 인증 사진">`;
+            }
+            
+            recordSection.classList.add('active');
+            shareBtn.disabled = false;
+            
+            // 타이머 정지
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            
+            // 버튼 상태 초기화
+            startBtn.disabled = false;
+            completeBtn.disabled = true;
+        }
+
+        // 날짜 시간 포맷
+        function formatDateTime(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+            
+            return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        }
+
+        // 시간 포맷
+        function formatDuration(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+            
+            if (hours > 0) {
+                return `${hours}시간 ${minutes}분 ${secs}초`;
+            } else if (minutes > 0) {
+                return `${minutes}분 ${secs}초`;
+            } else {
+                return `${secs}초`;
+            }
+        }
+
+        // 공유하기
+        shareBtn.addEventListener('click', () => {
+            if (!startTime || !endTime || !capturedPhoto) return;
+            
+            generateShareImage();
+        });
+
+        // 공유 이미지 생성
+        function generateShareImage() {
+            const shareCanvas = document.createElement('canvas');
+            shareCanvas.width = 800;
+            shareCanvas.height = 1000;
+            const ctx = shareCanvas.getContext('2d');
+            
+            // 배경
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, shareCanvas.width, shareCanvas.height);
+            
+            // 제목
+            ctx.fillStyle = '#333333';
+            ctx.font = 'bold 36px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('독서 인증', shareCanvas.width / 2, 60);
+            
+            // 사진
+            const img = new Image();
+            img.onload = () => {
+                const photoSize = 600;
+                const photoX = (shareCanvas.width - photoSize) / 2;
+                const photoY = 120;
+                
+                ctx.drawImage(img, photoX, photoY, photoSize, photoSize * (img.height / img.width));
+                
+                // 정보 텍스트
+                const infoY = photoY + photoSize * (img.height / img.width) + 50;
+                ctx.fillStyle = '#666666';
+                ctx.font = '24px Arial';
+                ctx.textAlign = 'center';
+                
+                ctx.fillText(`시작 시간: ${formatDateTime(startTime)}`, shareCanvas.width / 2, infoY);
+                ctx.fillText(`완료 시간: ${formatDateTime(endTime)}`, shareCanvas.width / 2, infoY + 40);
+                ctx.fillText(`독서 시간: ${formatDuration(Math.floor((endTime - startTime) / 1000))}`, shareCanvas.width / 2, infoY + 80);
+                
+                // 이미지 다운로드
+                shareCanvas.toBlob((blob) => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `독서인증_${formatDateTime(startTime).replace(/[: ]/g, '_')}.png`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                });
+            };
+            img.src = capturedPhoto;
+        }
+    </script>
+</body>
+</html>
