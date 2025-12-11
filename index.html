@@ -85,6 +85,28 @@
             color: #000000;
         }
 
+        .btn-pause {
+            background: #1e1e1e;
+            color: #ffffff;
+            border: 2px solid #ffffff;
+        }
+
+        .btn-pause:hover:not(:disabled) {
+            background: #ffffff;
+            color: #000000;
+        }
+
+        .btn-resume {
+            background: #1e1e1e;
+            color: #ffffff;
+            border: 2px solid #ffffff;
+        }
+
+        .btn-resume:hover:not(:disabled) {
+            background: #ffffff;
+            color: #000000;
+        }
+
         .btn-share {
             width: 100%;
         }
@@ -181,6 +203,32 @@
             border-color: #888888;
         }
 
+        .summary-section {
+            margin-top: 20px;
+        }
+
+        .summary-section textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #333333;
+            border-radius: 8px;
+            background: #1e1e1e;
+            color: #ffffff;
+            font-size: 1em;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .summary-section textarea:focus {
+            outline: none;
+            border-color: #ffffff;
+        }
+
+        .summary-section textarea::placeholder {
+            color: #666666;
+        }
+
         .camera-modal {
             display: none;
             position: fixed;
@@ -272,6 +320,8 @@
         
         <div class="button-group">
             <button class="btn-start" id="startBtn">독서 시작하기</button>
+            <button class="btn-pause" id="pauseBtn" disabled style="display: none;">일시정지</button>
+            <button class="btn-resume" id="resumeBtn" disabled style="display: none;">재개</button>
             <button class="btn-complete" id="completeBtn" disabled>독서 완료하기</button>
         </div>
         
@@ -290,6 +340,10 @@
             </div>
             <div class="photo-preview" id="photoPreview"></div>
             <button class="btn-retake" id="retakeBtn" style="display: none;">재촬영</button>
+            <div class="summary-section" id="summarySection" style="display: none;">
+                <div class="record-label" style="margin-top: 20px;">한줄 요약</div>
+                <textarea id="summaryInput" placeholder="오늘 읽은 부분에 대한 요약을 입력하세요 (선택사항)" rows="3"></textarea>
+            </div>
         </div>
         
         <div class="share-guide" id="shareGuide" style="display: none;">
@@ -317,10 +371,18 @@
         let timerInterval = null;
         let stream = null;
         let capturedPhoto = null;
+        let startPhoto = null; // 시작 시 촬영한 사진
+        let endPhoto = null; // 종료 시 촬영한 사진
+        let pausedTime = 0; // 일시정지된 시간 누적
+        let pauseStartTime = null; // 일시정지 시작 시간
+        let isPaused = false;
 
         const startBtn = document.getElementById('startBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const resumeBtn = document.getElementById('resumeBtn');
         const completeBtn = document.getElementById('completeBtn');
         const shareBtn = document.getElementById('shareBtn');
+        const summaryInput = document.getElementById('summaryInput');
         const timerDisplay = document.getElementById('timerDisplay');
         const recordSection = document.getElementById('recordSection');
         const startTimeDisplay = document.getElementById('startTime');
@@ -335,26 +397,66 @@
         const retakeBtn = document.getElementById('retakeBtn');
 
         // 독서 시작하기
-        startBtn.addEventListener('click', () => {
+        startBtn.addEventListener('click', async () => {
             startTime = new Date();
             startBtn.disabled = true;
+            startBtn.style.display = 'none';
+            pauseBtn.disabled = false;
+            pauseBtn.style.display = 'block';
             completeBtn.disabled = false;
             recordSection.classList.remove('active');
             shareBtn.disabled = true;
+            startPhoto = null;
+            endPhoto = null;
             capturedPhoto = null;
+            pausedTime = 0;
+            isPaused = false;
             document.getElementById('shareGuide').style.display = 'none';
+            document.getElementById('summarySection').style.display = 'none';
+            summaryInput.value = '';
             
-            // 타이머 시작
+            // 시작 시 사진 촬영
+            cameraModal.classList.add('active');
+            video.srcObject = null;
+        });
+
+        // 일시정지
+        pauseBtn.addEventListener('click', () => {
+            if (isPaused) return;
+            isPaused = true;
+            pauseStartTime = new Date();
+            pauseBtn.disabled = true;
+            pauseBtn.style.display = 'none';
+            resumeBtn.disabled = false;
+            resumeBtn.style.display = 'block';
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+        });
+
+        // 재개
+        resumeBtn.addEventListener('click', () => {
+            if (!isPaused) return;
+            if (pauseStartTime) {
+                pausedTime += Math.floor((new Date() - pauseStartTime) / 1000);
+                pauseStartTime = null;
+            }
+            isPaused = false;
+            resumeBtn.disabled = true;
+            resumeBtn.style.display = 'none';
+            pauseBtn.disabled = false;
+            pauseBtn.style.display = 'block';
             timerInterval = setInterval(updateTimer, 1000);
             updateTimer();
         });
 
         // 타이머 업데이트
         function updateTimer() {
-            if (!startTime) return;
+            if (!startTime || isPaused) return;
             
             const now = new Date();
-            const elapsed = Math.floor((now - startTime) / 1000);
+            const elapsed = Math.floor((now - startTime) / 1000) - pausedTime;
             
             const hours = Math.floor(elapsed / 3600);
             const minutes = Math.floor((elapsed % 3600) / 60);
@@ -418,7 +520,7 @@
             canvas.height = video.videoHeight;
             context.drawImage(video, 0, 0);
             
-            capturedPhoto = canvas.toDataURL('image/png');
+            const photo = canvas.toDataURL('image/png');
             
             // 스트림 정지
             if (stream) {
@@ -429,8 +531,20 @@
             // 모달 닫기
             cameraModal.classList.remove('active');
             
-            // 기록 표시
-            displayRecord();
+            // 시작 시 촬영인지 종료 시 촬영인지 판단
+            if (!startPhoto) {
+                // 시작 시 촬영
+                startPhoto = photo;
+                // 타이머 시작
+                timerInterval = setInterval(updateTimer, 1000);
+                updateTimer();
+            } else {
+                // 종료 시 촬영
+                endPhoto = photo;
+                capturedPhoto = photo; // 기존 호환성을 위해
+                // 기록 표시
+                displayRecord();
+            }
         }
 
         // 촬영하지 않기
@@ -444,12 +558,20 @@
             // 모달 닫기
             cameraModal.classList.remove('active');
             
-            // 사진 없이 기록 표시
-            capturedPhoto = null;
-            displayRecord();
+            // 시작 시 촬영을 건너뛴 경우
+            if (!startPhoto) {
+                // 타이머 시작
+                timerInterval = setInterval(updateTimer, 1000);
+                updateTimer();
+            } else {
+                // 종료 시 촬영을 건너뛴 경우
+                endPhoto = null;
+                capturedPhoto = null;
+                displayRecord();
+            }
         });
 
-        // 재촬영
+        // 재촬영 (종료 사진만 재촬영)
         retakeBtn.addEventListener('click', () => {
             // 카메라 모달 열기
             cameraModal.classList.add('active');
@@ -460,19 +582,8 @@
                 stream.getTracks().forEach(track => track.stop());
                 stream = null;
             }
-        });
-
-        // 재촬영
-        retakeBtn.addEventListener('click', () => {
-            // 카메라 모달 열기
-            cameraModal.classList.add('active');
-            // 비디오 초기화
-            video.srcObject = null;
-            // 기존 스트림 정리
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-                stream = null;
-            }
+            // 종료 사진만 재촬영하도록 설정
+            endPhoto = null;
         });
 
         // 기록 표시
@@ -481,20 +592,32 @@
             
             const startTimeStr = formatDateTime(startTime);
             const endTimeStr = formatDateTime(endTime);
-            const duration = Math.floor((endTime - startTime) / 1000);
-            const durationStr = formatDuration(duration);
+            const actualDuration = Math.floor((endTime - startTime) / 1000) - pausedTime;
+            const durationStr = formatDuration(actualDuration);
             
             startTimeDisplay.textContent = startTimeStr;
             endTimeDisplay.textContent = endTimeStr;
             durationDisplay.textContent = durationStr;
             
-            if (capturedPhoto) {
-                photoPreview.innerHTML = `<img src="${capturedPhoto}" alt="독서 인증 사진">`;
+            // 사진 표시 (시작 사진과 종료 사진)
+            let photoHTML = '';
+            if (startPhoto) {
+                photoHTML += '<div style="margin-bottom: 16px;"><div class="record-label" style="margin-bottom: 8px;">시작 페이지</div><img src="' + startPhoto + '" alt="시작 페이지" style="max-width: 100%; border-radius: 8px; border: 1px solid #333333;"></div>';
+            }
+            if (endPhoto) {
+                photoHTML += '<div><div class="record-label" style="margin-bottom: 8px;">완료 페이지</div><img src="' + endPhoto + '" alt="완료 페이지" style="max-width: 100%; border-radius: 8px; border: 1px solid #333333;"></div>';
+            }
+            
+            if (photoHTML) {
+                photoPreview.innerHTML = photoHTML;
                 document.getElementById('retakeBtn').style.display = 'block';
             } else {
                 photoPreview.innerHTML = '';
                 document.getElementById('retakeBtn').style.display = 'none';
             }
+            
+            // 요약 섹션 표시
+            document.getElementById('summarySection').style.display = 'block';
             
             recordSection.classList.add('active');
             // 사진 유무와 관계없이 공유 가능
@@ -502,14 +625,13 @@
             // 가이드 표시
             document.getElementById('shareGuide').style.display = 'block';
             
-            // 타이머 정지
-            if (timerInterval) {
-                clearInterval(timerInterval);
-                timerInterval = null;
-            }
-            
             // 버튼 상태 초기화
             startBtn.disabled = false;
+            startBtn.style.display = 'block';
+            pauseBtn.disabled = true;
+            pauseBtn.style.display = 'none';
+            resumeBtn.disabled = true;
+            resumeBtn.style.display = 'none';
             completeBtn.disabled = true;
         }
 
@@ -549,12 +671,12 @@
             await copyImage();
         });
 
-        // 공유 이미지 생성 (인스타그램 스토리 사이즈: 1080x1920)
+        // 공유 이미지 생성 (가로:세로 = 1:1.5, 1080x1620)
         function generateShareImage() {
             return new Promise((resolve) => {
                 const shareCanvas = document.createElement('canvas');
                 shareCanvas.width = 1080;
-                shareCanvas.height = 1920;
+                shareCanvas.height = 1620;
                 const ctx = shareCanvas.getContext('2d');
                 
                 // 배경
@@ -567,71 +689,139 @@
                 ctx.textAlign = 'center';
                 ctx.fillText('book buddy', shareCanvas.width / 2, 120);
                 
-                // 정보 텍스트 그리기 함수
-                function drawInfoText(ctx, width, startY) {
-                    ctx.fillStyle = '#ffffff';
-                    ctx.font = 'bold 40px Arial';
-                    ctx.textAlign = 'center';
+                let currentY = 220;
+                
+                // 1. 정보 텍스트 먼저 (시작 시간, 완료 시간, 독서 시간)
+                const actualDuration = Math.floor((endTime - startTime) / 1000) - pausedTime;
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 40px Arial';
+                ctx.textAlign = 'center';
+                
+                ctx.fillText(`시작 시간`, shareCanvas.width / 2, currentY);
+                ctx.font = '36px Arial';
+                ctx.fillText(`${formatDateTime(startTime)}`, shareCanvas.width / 2, currentY + 50);
+                
+                ctx.font = 'bold 40px Arial';
+                ctx.fillText(`완료 시간`, shareCanvas.width / 2, currentY + 120);
+                ctx.font = '36px Arial';
+                ctx.fillText(`${formatDateTime(endTime)}`, shareCanvas.width / 2, currentY + 170);
+                
+                ctx.font = 'bold 40px Arial';
+                ctx.fillText(`총 독서 시간`, shareCanvas.width / 2, currentY + 240);
+                ctx.font = '36px Arial';
+                ctx.fillText(`${formatDuration(actualDuration)}`, shareCanvas.width / 2, currentY + 290);
+                
+                currentY += 380;
+                
+                // 2. 사진들 (시작 페이지, 완료 페이지)
+                const photoWidth = 380;
+                const photoSpacing = 20;
+                const photos = [];
+                if (startPhoto) photos.push({ src: startPhoto, label: '시작 페이지' });
+                if (endPhoto) photos.push({ src: endPhoto, label: '완료 페이지' });
+                
+                // 사진들을 로드
+                const loadPromises = photos.map(photo => {
+                    return new Promise((resolve) => {
+                        const img = new Image();
+                        img.onload = () => resolve({ ...photo, img });
+                        img.src = photo.src;
+                    });
+                });
+                
+                Promise.all(loadPromises).then(loadedPhotos => {
+                    // 사진 그리기
+                    if (loadedPhotos.length === 2) {
+                        // 두 사진을 나란히 같은 높이에 배치
+                        const photoX1 = (shareCanvas.width - photoWidth * 2 - photoSpacing) / 2;
+                        const photoX2 = photoX1 + photoWidth + photoSpacing;
+                        
+                        // 두 사진의 높이를 계산하고 더 높은 높이를 기준으로 설정
+                        const photoHeights = loadedPhotos.map(photo => 
+                            photoWidth * (photo.img.height / photo.img.width)
+                        );
+                        const maxPhotoHeight = Math.max(...photoHeights);
+                        const labelY = currentY;
+                        const photoStartY = currentY + 40;
+                        
+                        // 라벨과 사진을 같은 높이에 배치
+                        loadedPhotos.forEach((photo, index) => {
+                            const photoX = index === 0 ? photoX1 : photoX2;
+                            const photoHeight = photoWidth * (photo.img.height / photo.img.width);
+                            
+                            // 라벨 (같은 높이)
+                            ctx.fillStyle = '#ffffff';
+                            ctx.font = 'bold 28px Arial';
+                            ctx.textAlign = 'center';
+                            ctx.fillText(photo.label, photoX + photoWidth / 2, labelY);
+                            
+                            // 사진 (같은 높이에 맞춰서 중앙 정렬)
+                            const photoY = photoStartY + (maxPhotoHeight - photoHeight) / 2;
+                            ctx.drawImage(photo.img, photoX, photoY, photoWidth, photoHeight);
+                        });
+                        
+                        // 다음 요소를 위한 Y 위치 업데이트 (가장 높은 사진 기준)
+                        currentY = photoStartY + maxPhotoHeight + 40;
+                    } else if (loadedPhotos.length === 1) {
+                        // 사진 하나만
+                        const photo = loadedPhotos[0];
+                        const photoX = (shareCanvas.width - photoWidth) / 2;
+                        const photoHeight = photoWidth * (photo.img.height / photo.img.width);
+                        
+                        // 라벨
+                        ctx.fillStyle = '#ffffff';
+                        ctx.font = 'bold 28px Arial';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(photo.label, shareCanvas.width / 2, currentY);
+                        
+                        // 사진
+                        ctx.drawImage(photo.img, photoX, currentY + 40, photoWidth, photoHeight);
+                        currentY += photoHeight + 80;
+                    }
                     
-                    ctx.fillText(`시작 시간`, width / 2, startY);
-                    ctx.font = '36px Arial';
-                    ctx.fillText(`${formatDateTime(startTime)}`, width / 2, startY + 50);
+                    // 3. 요약 텍스트 (사진 아래에 배치, 간격 확보)
+                    const summary = summaryInput.value.trim();
+                    if (summary) {
+                        currentY += 50; // 사진과 요약 사이 간격 확대
+                        ctx.font = 'bold 36px Arial';
+                        ctx.fillText(`한줄 요약`, shareCanvas.width / 2, currentY);
+                        ctx.font = '30px Arial';
+                        // 긴 텍스트는 줄바꿈 처리
+                        const maxWidth = shareCanvas.width - 100;
+                        const words = summary.split(' ');
+                        let line = '';
+                        let y = currentY + 45;
+                        for (let word of words) {
+                            const testLine = line + word + ' ';
+                            const metrics = ctx.measureText(testLine);
+                            if (metrics.width > maxWidth && line !== '') {
+                                ctx.fillText(line, shareCanvas.width / 2, y);
+                                line = word + ' ';
+                                y += 38;
+                            } else {
+                                line = testLine;
+                            }
+                        }
+                        ctx.fillText(line, shareCanvas.width / 2, y);
+                        currentY = y + 50;
+                    } else {
+                        currentY += 50; // 사진이 없어도 간격 유지
+                    }
                     
-                    ctx.font = 'bold 40px Arial';
-                    ctx.fillText(`완료 시간`, width / 2, startY + 120);
-                    ctx.font = '36px Arial';
-                    ctx.fillText(`${formatDateTime(endTime)}`, width / 2, startY + 170);
-                    
-                    ctx.font = 'bold 40px Arial';
-                    ctx.fillText(`독서 시간`, width / 2, startY + 240);
-                    ctx.font = '36px Arial';
-                    ctx.fillText(`${formatDuration(Math.floor((endTime - startTime) / 1000))}`, width / 2, startY + 290);
-                    
-                    // 링크 텍스트 추가
+                    // 4. 링크 텍스트 추가
                     const linkUrl = 'https://seovalue.github.io/reading-buddy/';
-                    const linkTextY = shareCanvas.height - 100;
+                    const linkTextY = shareCanvas.height - 80;
                     ctx.fillStyle = '#ffffff';
                     ctx.font = 'bold 32px Arial';
-                    ctx.fillText('book buddy link:', width / 2, linkTextY);
+                    ctx.fillText('book buddy link:', shareCanvas.width / 2, linkTextY);
                     ctx.font = '28px Arial';
                     ctx.fillStyle = '#999999';
-                    ctx.fillText(linkUrl, width / 2, linkTextY + 40);
+                    ctx.fillText(linkUrl, shareCanvas.width / 2, linkTextY + 40);
                     
                     shareCanvas.toBlob((blob) => {
                         resolve(blob);
                     }, 'image/png');
-                }
-                
-                // 사진이 있는 경우
-                if (capturedPhoto) {
-                    const img = new Image();
-                    img.onload = () => {
-                        const photoWidth = 900;
-                        const photoHeight = photoWidth * (img.height / img.width);
-                        const photoX = (shareCanvas.width - photoWidth) / 2;
-                        const photoY = 220;
-                        
-                        // 사진이 캔버스 높이를 넘지 않도록 조정
-                        let finalPhotoHeight = photoHeight;
-                        let finalPhotoWidth = photoWidth;
-                        if (photoY + photoHeight > shareCanvas.height - 400) {
-                            finalPhotoHeight = shareCanvas.height - 400 - photoY;
-                            finalPhotoWidth = finalPhotoHeight * (img.width / img.height);
-                        }
-                        
-                        const finalPhotoX = (shareCanvas.width - finalPhotoWidth) / 2;
-                        ctx.drawImage(img, finalPhotoX, photoY, finalPhotoWidth, finalPhotoHeight);
-                        
-                        // 정보 텍스트
-                        const infoY = photoY + finalPhotoHeight + 80;
-                        drawInfoText(ctx, shareCanvas.width, infoY);
-                    };
-                    img.src = capturedPhoto;
-                } else {
-                    // 사진이 없는 경우 - 정보 텍스트만 표시
-                    const infoY = 600;
-                    drawInfoText(ctx, shareCanvas.width, infoY);
-                }
+                });
             });
         }
 
